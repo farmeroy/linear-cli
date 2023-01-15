@@ -17,8 +17,8 @@ program
   .option("-i, --issues", "List your issues");
 
 program.parse();
+
 const options = program.opts();
-console.log(options);
 
 if (options.issues) {
   listIssues();
@@ -29,9 +29,9 @@ async function listIssues() {
   const myIssues = await me.assignedIssues();
 
   if (myIssues.nodes.length) {
-    myIssues.nodes.map((issue) =>
-      console.log(`${me.displayName} has issue: ${console.dir(issue)}`)
-    );
+    myIssues.nodes
+      .filter((issue) => !issue.completedAt)
+      .map((issue) => console.dir(issue.title));
   } else {
     console.log(`${me.displayName} has no issues`);
   }
