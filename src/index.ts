@@ -2,8 +2,14 @@ import { Command } from "commander";
 import { LinearClient } from "@linear/sdk";
 import { config } from "dotenv";
 import inquirer from "inquirer";
+import { marked } from "marked";
+import TerminalRenderer from "marked-terminal";
 
 config();
+
+marked.setOptions({
+  renderer: new TerminalRenderer(),
+});
 
 const client = new LinearClient({
   apiKey: process.env.LINEAR_API_KEY,
@@ -62,13 +68,16 @@ async function readIssue() {
     .prompt([
       {
         type: "list",
-        name: "Current Issues",
+        name: "currentIssues",
         message: "Choose an issue to read",
         choices: choices,
       },
     ])
-    .then((issue) => {
-      console.log(JSON.stringify(issue, null, 2));
+    .then((answers) => {
+      const issue = myIssues.nodes.find(
+        (issue) => issue.title === answers.currentIssues
+      );
+      console.log(marked(issue.description));
     })
     .catch((error) => {
       if (error.isTtyError) {
