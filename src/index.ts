@@ -4,6 +4,8 @@ import { config } from "dotenv";
 import inquirer from "inquirer";
 import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
+import { spawn } from "child_process";
+import fs from "fs";
 
 config();
 
@@ -31,6 +33,11 @@ program
   .command("read")
   .description("read the contents of an issue")
   .action(() => readIssue());
+
+program
+  .command("edit")
+  .description("Edit an issue")
+  .action(() => editIssue());
 
 program.parse();
 
@@ -78,6 +85,53 @@ async function readIssue() {
         (issue) => issue.title === answers.currentIssues
       );
       console.log(marked(issue.description));
+    })
+    .catch((error) => {
+      if (error.isTtyError) {
+        console.warn("Your console environment is not supported");
+      } else {
+        console.warn(error);
+      }
+    });
+}
+
+async function editIssue() {
+  const me = await client.viewer;
+  const myIssues = await me.assignedIssues();
+  if (myIssues.nodes.length === 0) {
+    console.log(`${me.displayName} has no issues`);
+    return;
+  }
+  const choices = myIssues.nodes
+    .filter((issue) => !issue.completedAt)
+    .map((issue) => issue.title);
+  inquirer
+    .prompt([
+      {
+        type: "list",
+        name: "currentIssues",
+        message: "Choose an issue to read",
+        choices: choices,
+      },
+    ])
+    .then((answers) => {
+      const issue = myIssues.nodes.find(
+        (issue) => issue.title === answers.currentIssues
+      );
+      const titleFile = String(issue.title + "-description.md");
+      const writeStream = fs.createWriteStream(titleFile);
+      writeStream.write(issue.description);
+      writeStream.end();
+      const editorSpawn = spawn("nvim", [titleFile], {
+        stdio: "inherit",
+        detached: true,
+      });
+      editorSpawn.on("data", function (data) {
+        process.stdout.pipe(data);
+      });
+      editorSpawn.on("close", () => {
+        fs.unlinkSync(titleFile);
+      });
     })
     .catch((error) => {
       if (error.isTtyError) {
