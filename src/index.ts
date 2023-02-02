@@ -115,23 +115,25 @@ async function editIssue() {
       },
     ])
     .then((answers) => {
-      const issue = myIssues.nodes.find(
+      return myIssues.nodes.find(
         (issue) => issue.title === answers.currentIssues
       );
-      const titleFile = String(issue.title + "-description.md");
-      const writeStream = fs.createWriteStream(titleFile);
-      writeStream.write(issue.description);
-      writeStream.end();
-      const editorSpawn = spawn("nvim", [titleFile], {
-        stdio: "inherit",
-        detached: true,
-      });
-      editorSpawn.on("data", function (data) {
-        process.stdout.pipe(data);
-      });
-      editorSpawn.on("close", () => {
-        fs.unlinkSync(titleFile);
-      });
+    })
+    .then((issue) => {
+      inquirer
+        .prompt([
+          {
+            type: "editor",
+            name: "description",
+            message: "New Description",
+            default: issue.description,
+            postfix: "md",
+          },
+        ])
+        .then((answers) => {
+          console.log("Issue Updated\n");
+          console.log(marked(answers.description));
+        });
     })
     .catch((error) => {
       if (error.isTtyError) {
